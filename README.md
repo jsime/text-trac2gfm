@@ -4,12 +4,18 @@ Text::Trac2GFM
 
 # SYNOPSIS
 
+As a Perl library:
+
     use Text::Trac2GFM qw( trac2gfm gfmtitle );
 
     # GitLab Wiki compatible title: 'api-users-and-accounts'
     my $gitlab_wiki_title = gfmtitle('API/Users & Accounts');
 
     my $gfm_page = trac2gfm($tracwiki_markup);
+
+Using the included `trac2gfm` command line program:
+
+    $ trac2gfm <path to tracwiki file>
 
 # DESCRIPTION
 
