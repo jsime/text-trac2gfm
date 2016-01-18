@@ -17,6 +17,10 @@ Using the included `trac2gfm` command line program:
 
     $ trac2gfm <path to tracwiki file>
 
+Or piped to `STDIN`:
+
+    $ cat <trac wiki file> | trac2gfm
+
 # DESCRIPTION
 
 This module provides functions which ease the migration of TracWiki formatted
@@ -75,16 +79,45 @@ Things that do _not_ convert (at least not yet):
 - Definition Lists
 - Tables
 
-## gfmtitle
+## gfmtitle ($title\_string, $options)
 
-Provided a single line string, returns a variant suitable for use as the title
-of a GitLab Wiki page. Mutations include replacement of all whitespace and
-disallowed characters with dashes along with a reduction to non-repeating
-kebab casing.
+Provided a single line string, `$title_string`, returns a variant suitable for
+use as the title of a GitLab Wiki page. Default mutations include replacement
+of all whitespace and disallowed characters with dashes along with a reduction
+to non-repeating kebab casing.
 
 Some common technical terms that would otherwise render strangely within the
 restrictions of GFM titles are replaced with more verbose versions (e.g. 'C++'
 becomes 'c-plus-plus' instead of 'c-' as it would without special handling).
+
+You may also pass in an optional hash reference containing the following
+options to override some of the default behavior:
+
+- downcase
+
+    Defaults to true. Providing any false-y value will cause `gfmtitle` to retain
+    the case of your input string, instead of lower-casing it.
+
+- unslash
+
+    Defaults to true. Providing any false-y value will cause slashes (`/`) to be
+    retained in the output, instead of converting them to dashes (`-`). Note that
+    this can cause problems if you are committing your converted wiki pages into a
+    local Git repository - special case will be needed to escape those retained
+    slashes so that they are treated as part of the filename itself instead of as a
+    directory separator.
+
+- terms
+
+    Allows you to supply your own special term conversions, or override any default
+    ones provided by this module. This is helpful in the event that your wiki uses
+    words or phrases which are mangled in unfortunate ways. The keys of the hashref
+    should be the terms (case-insensitive) as they appear in your wiki titles and
+    the values should be the form to which they should be converted. For example,
+    to keep a sane version of 'C++' in your wiki titles for GitLab (where the plus
+    sign is not allowed), you might do:
+
+        gfmtitle('Languages/C++', { terms => { 'c++' => 'c-plus-plus' } });
 
 # BUGS
 

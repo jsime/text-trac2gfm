@@ -26,6 +26,10 @@ Using the included C<trac2gfm> command line program:
 
     $ trac2gfm <path to tracwiki file>
 
+Or piped to C<STDIN>:
+
+    $ cat <trac wiki file> | trac2gfm
+
 =head1 DESCRIPTION
 
 This module provides functions which ease the migration of TracWiki formatted
@@ -136,27 +140,73 @@ sub trac2gfm {
     return $trac;
 }
 
-=head2 gfmtitle
+=head2 gfmtitle ($title_string, $options)
 
-Provided a single line string, returns a variant suitable for use as the title
-of a GitLab Wiki page. Mutations include replacement of all whitespace and
-disallowed characters with dashes along with a reduction to non-repeating
-kebab casing.
+Provided a single line string, C<$title_string>, returns a variant suitable for
+use as the title of a GitLab Wiki page. Default mutations include replacement
+of all whitespace and disallowed characters with dashes along with a reduction
+to non-repeating kebab casing.
 
 Some common technical terms that would otherwise render strangely within the
 restrictions of GFM titles are replaced with more verbose versions (e.g. 'C++'
 becomes 'c-plus-plus' instead of 'c-' as it would without special handling).
 
+You may also pass in an optional hash reference containing the following
+options to override some of the default behavior:
+
+=over
+
+=item * downcase
+
+Defaults to true. Providing any false-y value will cause C<gfmtitle> to retain
+the case of your input string, instead of lower-casing it.
+
+=item * unslash
+
+Defaults to true. Providing any false-y value will cause slashes (C</>) to be
+retained in the output, instead of converting them to dashes (C<->). Note that
+this can cause problems if you are committing your converted wiki pages into a
+local Git repository - special case will be needed to escape those retained
+slashes so that they are treated as part of the filename itself instead of as a
+directory separator.
+
+=item * terms
+
+Allows you to supply your own special term conversions, or override any default
+ones provided by this module. This is helpful in the event that your wiki uses
+words or phrases which are mangled in unfortunate ways. The keys of the hashref
+should be the terms (case-insensitive) as they appear in your wiki titles and
+the values should be the form to which they should be converted. For example,
+to keep a sane version of 'C++' in your wiki titles for GitLab (where the plus
+sign is not allowed), you might do:
+
+    gfmtitle('Languages/C++', { terms => { 'c++' => 'c-plus-plus' } });
+
+=back
+
 =cut
 
 sub gfmtitle {
-    my ($title) = @_;
+    my ($title, $opts) = @_;
+
+    my $defaults = {
+        downcase => 1,
+        unslash  => 1,
+        terms    => {},
+    };
 
     return unless defined $title && length($title) > 0;
 
     # Special-case WikiStart, since TracWiki uses that as the homepage of a wiki
     # and GitLab uses 'home'.
     return 'home' if $title eq 'WikiStart';
+
+    # Override our defaults if caller has provided anything.
+    if (defined $opts && ref($opts) eq 'HASH') {
+        foreach my $k (keys %{$opts}) {
+            $defaults->{$k} = $opts->{$k};
+        }
+    }
 
     # Not terrifically wonderful, but some developer/tech/etc. terms that would
     # otherwise convert in very unfortunate ways. Keys are case-insensitive.
@@ -166,22 +216,29 @@ sub gfmtitle {
     my %special_terms = (
         '&'    => '-and-',
         '@'    => '-at-',
-        'c++ ' => 'c-plus-plus',
-        'a#'   => 'a-sharp',
-        'c#'   => 'c-sharp',
-        'f#'   => 'f-sharp',
-        'j#'   => 'j-sharp',
-        '.net' => '-dot-net',
+        'c++ ' => 'C-Plus-Plus',
+        'a#'   => 'A-Sharp',
+        'c#'   => 'C-Sharp',
+        'f#'   => 'F-Sharp',
+        'j#'   => 'J-Sharp',
+        '.net' => '-Dot-Net',
     );
+
+    # Add any user-supplied replacement terms.
+    if (exists $defaults->{'terms'} && ref($defaults->{'terms'}) eq 'HASH') {
+        $special_terms{$_} = $defaults->{'terms'}{$_} for keys %{$defaults->{'terms'}};
+    }
 
     # GitLab wiki titles are restricted to [a-zA-Z0-9_-/]. Additionally, they
     # encourage kebab-casing in their examples.
-    $title = lc($title);
+    $title =~ s{/}{-}g  if $defaults->{'unslash'};
     $title =~ s{(^\s+|\s+$)}{}gs;
     $title =~ s{$_}{ $special_terms{$_} }ige for keys %special_terms;
-    $title =~ s{[^a-z0-9]+}{-}gs;
+    $title =~ s{[^a-zA-Z0-9/]+}{-}gs;
     $title =~ s{-+}{-}g;
     $title =~ s{(^-+|-+$)}{}gs;
+
+    $title = lc($title) if $defaults->{'downcase'};
 
     return $title;
 }
