@@ -54,23 +54,30 @@ This module does not export any functions by default. You must select the ones
 you wish you use explicitly during module import. The following functions are
 available for importing:
 
-=head2 trac2gfm
+=head2 trac2gfm ($markup, $title_options)
 
 Provided a scalar containing TracWiki markup, returns a scalar containing GFM
 compliant markup. As many markup features as can be converted are, but please
 note that GitLab-flavored Markdown does not support absolutely everything that
 TracWiki does.
 
-Additionally, if being performed as part of a wholesale Trac to GitLab migration
-(which is probably the case), you will be responsible for updating the various
-internal links which use identifiers that may have changed (ticket numbers,
-commit IDs, etc.). Internal Wiki links will be corrected to use the GFM title
-format, however, so as long as your entire wiki is converted using these
-functions, the page references will come out intact. If you had been using Git
-repositories in Trac, then your commit IDs will likely also remain the same
-(as that process should be accomplished by simply switching remotes). Trac to
-GitLab conversions which go from SVN to Git will require additional massaging
-to maintain the C<[n]> changeset references.
+An optional hash reference of title options may be provided as the second
+argument. The contents should be the same as what may be passed to C<gfmtitle>
+and will be passed unaltered to that function whenever necessary. This ensures
+that any internal wiki links which are converted as part of the markup
+translation follow the same rules you may be using in your own direct
+invocations of C<gfmtitle>.
+
+If being performed as part of a wholesale Trac to GitLab migration (which is
+probably the case), you will be responsible for updating the various internal
+links which use identifiers that may have changed (ticket numbers, commit IDs,
+etc.). Internal Wiki links will be corrected to use the GFM title format,
+however, so as long as your entire wiki is converted using these functions, the
+page references will come out intact. If you had been using Git repositories in
+Trac, then your commit IDs will likely also remain the same (as that process
+should be accomplished by simply switching remotes). Trac to GitLab conversions
+which go from SVN to Git will require additional massaging to maintain the
+C<[n]> changeset references.
 
 Things that do get converted:
 
@@ -107,7 +114,12 @@ Things that do I<not> convert (at least not yet):
 =cut
 
 sub trac2gfm {
-    my ($trac) = @_;
+    my ($trac, $title_opts) = @_;
+
+    # To properly convert TracLinks using the same title conversions the caller
+    # may be supplying when using gfmtitle directly, we need to accept the same
+    # here and pass it along to any of our own invocations to that function.
+    $title_opts = {} unless defined $title_opts && ref($title_opts) eq 'HASH';
 
     # Enforce UNIX linebreaks
     $trac =~ s{\r\n}{\n}gs;
