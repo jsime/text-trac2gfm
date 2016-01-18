@@ -166,7 +166,7 @@ the case of your input string, instead of lower-casing it.
 Defaults to true. Providing any false-y value will cause slashes (C</>) to be
 retained in the output, instead of converting them to dashes (C<->). Note that
 this can cause problems if you are committing your converted wiki pages into a
-local Git repository - special case will be needed to escape those retained
+local Git repository - special care will be needed to escape the retained
 slashes so that they are treated as part of the filename itself instead of as a
 directory separator.
 
