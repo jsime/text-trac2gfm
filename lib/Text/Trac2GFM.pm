@@ -158,6 +158,15 @@ sub trac2gfm {
             : $1 . '[' . $2 . '](' . gfmtitle($2, $title_opts) . ')'
     }gxe;
 
+    # Named URLs
+    $trac =~ s{
+        \[ (\w+://[^\]\s]+) \s* ([^\]]+)? \]
+    }{
+        defined $2 && length($2) > 0
+            ? '[' . $2 . '](' . $1 . ')'
+            : $1
+    }gmex;
+
     return $trac;
 }
 
