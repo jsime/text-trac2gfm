@@ -257,9 +257,13 @@ sub gfmtitle {
     $title =~ s{$_}{ $special_terms{$_} }ige for keys %special_terms;
     $title =~ s{[^a-zA-Z0-9/]+}{-}gs;
     $title =~ s{-+}{-}g;
-    $title =~ s{(^-+|-+$)}{}gs;
 
-    $title = lc($title) if $defaults->{'downcase'};
+    if ($defaults->{'downcase'}) {
+        $title =~ s{([A-Z])}{-$1}g if $title =~ m{^([A-Z][a-z0-9]+){2,}$}s;
+        $title = lc($title);
+    }
+
+    $title =~ s{(^-+|-+$)}{}gs;
 
     return $title;
 }
