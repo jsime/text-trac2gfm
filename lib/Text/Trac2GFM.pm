@@ -149,6 +149,15 @@ sub trac2gfm {
     # In-line preformatting
     $trac =~ s/({{{|}}})/`/g;
 
+    # CamelCase internal wiki links
+    $trac =~ s{
+        (^|\s) ( !? ([A-Z][a-z0-9]+){2,} ) \b
+    }{
+        substr($2, 0, 1) eq '!'
+            ? $1 . substr($2, 1)
+            : $1 . '[' . $2 . '](' . gfmtitle($2, $title_opts) . ')'
+    }gxe;
+
     return $trac;
 }
 

@@ -45,7 +45,7 @@ cmp_ok(trac2gfm($give), 'eq', $expect, 'basic lettered list');
 
 $give = <<EOG;
 1. First
-  *NestFirst
+  *Nest First
   *Nest Second
 2. Second
 3. Third
@@ -54,7 +54,7 @@ $give = <<EOG;
 EOG
 $expect = <<EOE;
 1. First
-  * NestFirst
+  * Nest First
   * Nest Second
 2. Second
 3. Third
