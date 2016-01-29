@@ -158,6 +158,16 @@ sub trac2gfm {
             : $1 . '[' . $2 . '](' . gfmtitle($2, $title_opts) . ')'
     }gxe;
 
+    # Explicit wiki links
+    $trac =~ s{
+        \[wiki: ([^\s]+) \s* ([^\]]+)? \]
+    }{
+        my $l_title = gfmtitle($1, $title_opts);
+        defined $2 && length($2) > 0
+            ? '[' . $2 . '](' . $l_title . ')'
+            : '[' . $l_title . '](' . $l_title . ')'
+    }gmex;
+
     # Named URLs
     $trac =~ s{
         \[ (\w+://[^\]\s]+) \s* ([^\]]+)? \]
