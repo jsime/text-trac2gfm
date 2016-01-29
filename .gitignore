@@ -21,5 +21,5 @@ pm_to_blib
 Session.vim
 .netrwhist
 *~
-Text-Trac2GFM-*.tar.gz
+Text-Trac2GFM-*
 Makefile.PL
