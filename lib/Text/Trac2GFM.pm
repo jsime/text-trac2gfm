@@ -177,6 +177,9 @@ sub trac2gfm {
             : $1
     }gmex;
 
+    # Manual linebreaks cleanup
+    $trac =~ s{\n?(\[\[BR\s*\]\])+}{  }gs;
+
     return $trac;
 }
 
