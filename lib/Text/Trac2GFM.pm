@@ -269,15 +269,15 @@ sub gfmtitle {
         $special_terms{$_} = $defaults->{'terms'}{$_} for keys %{$defaults->{'terms'}};
     }
 
-    # GitLab wiki titles are restricted to [a-zA-Z0-9_-/]. Additionally, they
-    # encourage kebab-casing in their examples.
+    # GitLab wiki titles are restricted to (roughly) [a-zA-Z0-9_-/].
+    # Additionally, they encourage kebab-casing in their examples.
     $title =~ s{/}{-}g  if $defaults->{'unslash'};
     $title =~ s{(^\s+|\s+$)}{}gs;
     $title =~ s{$_}{ $special_terms{$_} }ige for keys %special_terms;
     $title =~ s{[^a-zA-Z0-9/]+}{-}gs;
 
     if ($defaults->{'downcase'}) {
-        $title =~ s{([A-Z])}{-$1}g if $title =~ m{\b([A-Z][a-z0-9]+){2,}\b}s;
+        $title =~ s{([A-Z][a-z])}{-$1}g if $title =~ m{\b([A-Z][a-z0-9]+){2,}\b}s;
         $title = lc($title);
     }
 
