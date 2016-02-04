@@ -177,6 +177,10 @@ sub trac2gfm {
             : $1
     }gmex;
 
+    ## Trac project links (issues, commits, users, etc.)
+    # Tickets
+    $trac =~ s{(?:#|ticket:|bug:)(\d+)}{#$1}g;
+
     # Manual linebreaks cleanup
     $trac =~ s{\n?(\[\[BR\s*\]\])+}{  }gs;
 
