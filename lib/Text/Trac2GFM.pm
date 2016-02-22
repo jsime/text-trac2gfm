@@ -3,6 +3,8 @@ use warnings;
 package Text::Trac2GFM;
 # ABSTRACT: Converts TracWiki formatted text to GitLab-flavored Markdown (GFM).
 
+use String::Util ':all';
+
 use Exporter::Easy (
     OK => [ 'trac2gfm', 'gfmtitle' ]
 );
@@ -125,7 +127,7 @@ sub trac2gfm {
     $trac =~ s{\r\n}{\n}gs;
 
     # Headings ('=== Foo ===' -> '### Foo')
-    $trac =~ s{^(=+)([^=]+)=*$}{ ('#' x length($1)) . ' ' . _trim($2) }gme;
+    $trac =~ s{^(=+)([^=]+)=*$}{ ('#' x length($1)) . ' ' . crunch($2) }gme;
 
     # Paragraph spacing
     $trac =~ s{\n{2,}}{\n\n}gs;
@@ -305,15 +307,6 @@ Issues page:
 L<https://github.com/jsime/text-trac2gfm/issues>
 
 Pull requests are welcome.
-=cut
-
-sub _trim {
-    my ($text) = @_;
-
-    $text =~ s{(^\s+|\s+$)}{}ogs;
-
-    return $text;
-}
 
 =head1 AUTHORS
 
