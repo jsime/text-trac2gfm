@@ -80,13 +80,14 @@ Things that do get converted:
 - Blockquotes
 - Links
 - TracLinks
-- Image macros (for images on the current wiki page only)
+- Image macross (for images on the current wiki page only)
 
 Things that do _not_ convert (at least not yet):
 
 - Definition Lists
 - Tables
 - Images from anywhere other than the current wiki page
+- Macros
 
 ## gfmtitle ($title\_string, $options)
 

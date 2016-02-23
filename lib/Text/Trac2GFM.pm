@@ -101,7 +101,7 @@ Things that do get converted:
 
 =item * TracLinks
 
-=item * Image macros (for images on the current wiki page only)
+=item * Image macross (for images on the current wiki page only)
 
 =back
 
@@ -115,6 +115,8 @@ Things that do I<not> convert (at least not yet):
 
 =item * Images from anywhere other than the current wiki page
 
+=item * Macros
+
 =back
 
 =cut
@@ -126,7 +128,11 @@ sub trac2gfm {
     # may be supplying when using gfmtitle directly, we need to accept the same
     # here and pass it along to any of our own invocations to that function.
     $opts = {} unless defined $opts && ref($opts) eq 'HASH';
+
+    # Additionally, we need some conversion mappings for ourselves - where wiki
+    # images will be living and any SVN changeset -> Git commit mappings.
     $opts->{'image_base'} = '/' unless exists $opts->{'image_base'};
+    $opts->{'commits'} = {} unless exists $opts->{'commits'} && ref($opts->{'commits'}) eq 'HASH';
 
     # Enforce UNIX linebreaks
     $trac =~ s{\r\n}{\n}gs;
@@ -187,6 +193,15 @@ sub trac2gfm {
     ## Trac project links (issues, commits, users, etc.)
     # Tickets
     $trac =~ s{(?:#|ticket:|bug:)(\d+)}{#$1}g;
+
+    # Changesets
+    $trac =~ s{
+        ( (r|changeset:)(?<num>\d+) | \[(?<num>\d+)\] )
+    }{
+        exists $opts->{'commits'}{$+{'num'}}
+            ? $opts->{'commits'}{$+{'num'}}
+            : $+{'num'}
+    }gxe;
 
     # Image macros
     $trac =~ s{
