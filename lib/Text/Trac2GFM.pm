@@ -101,6 +101,8 @@ Things that do get converted:
 
 =item * TracLinks
 
+=item * Image macros (for images on the current wiki page only)
+
 =back
 
 Things that do I<not> convert (at least not yet):
@@ -111,17 +113,20 @@ Things that do I<not> convert (at least not yet):
 
 =item * Tables
 
+=item * Images from anywhere other than the current wiki page
+
 =back
 
 =cut
 
 sub trac2gfm {
-    my ($trac, $title_opts) = @_;
+    my ($trac, $opts) = @_;
 
     # To properly convert TracLinks using the same title conversions the caller
     # may be supplying when using gfmtitle directly, we need to accept the same
     # here and pass it along to any of our own invocations to that function.
-    $title_opts = {} unless defined $title_opts && ref($title_opts) eq 'HASH';
+    $opts = {} unless defined $opts && ref($opts) eq 'HASH';
+    $opts->{'image_base'} = '/' unless exists $opts->{'image_base'};
 
     # Enforce UNIX linebreaks
     $trac =~ s{\r\n}{\n}gs;
@@ -157,14 +162,14 @@ sub trac2gfm {
     }{
         substr($2, 0, 1) eq '!'
             ? $1 . substr($2, 1)
-            : $1 . '[' . $2 . '](' . gfmtitle($2, $title_opts) . ')'
+            : $1 . '[' . $2 . '](' . gfmtitle($2, $opts) . ')'
     }gxe;
 
     # Explicit wiki links
     $trac =~ s{
         \[wiki: ([^\s]+) \s* ([^\]]+)? \]
     }{
-        my $l_title = gfmtitle($1, $title_opts);
+        my $l_title = gfmtitle($1, $opts);
         defined $2 && length($2) > 0
             ? '[' . $2 . '](' . $l_title . ')'
             : '[' . $l_title . '](' . $l_title . ')'
@@ -182,6 +187,16 @@ sub trac2gfm {
     ## Trac project links (issues, commits, users, etc.)
     # Tickets
     $trac =~ s{(?:#|ticket:|bug:)(\d+)}{#$1}g;
+
+    # Image macros
+    $trac =~ s{
+        \[\[Image\( ([^\)]+) \)\]\]
+    }{
+        my @path = split('/', $1);
+        my $url = $opts->{'image_base'};
+        $url .= (substr($url, -1, 1) eq '/' ? '' : '/') . $path[-1];
+        sprintf('![%s](%s)', $path[-1], $url);
+    }gxe;
 
     # Manual linebreaks cleanup
     $trac =~ s{\n?(\[\[BR\s*\]\])+}{  }gs;
