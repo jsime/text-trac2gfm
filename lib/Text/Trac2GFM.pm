@@ -101,6 +101,14 @@ Things that do get converted:
 
 =item * TracLinks
 
+=over
+
+=item * Issues/Tickets
+
+=item * Changesets (including mapping SVN changeset numbers to Git commit IDs)
+
+=back
+
 =item * Image macross (for images on the current wiki page only)
 
 =back
@@ -124,6 +132,8 @@ Things that do I<not> convert (at least not yet):
 sub trac2gfm {
     my ($trac, $opts) = @_;
 
+    my $end_with_nl = $trac =~ m{\n$}s;
+
     # To properly convert TracLinks using the same title conversions the caller
     # may be supplying when using gfmtitle directly, we need to accept the same
     # here and pass it along to any of our own invocations to that function.
@@ -142,6 +152,10 @@ sub trac2gfm {
 
     # Paragraph spacing
     $trac =~ s{\n{2,}}{\n\n}gs;
+
+    # Blockquotes (opening line only - remaining multiline are handled later)
+    $trac =~ s{\n\n\s{2,}(\S[^\n]*)(\n|$)}{\n\n> $1$2}gs;
+#    $trac =~ s{(\n>[^\n]*\n)[ ]{2,}(\S.*)\n}{$1> $2\n}gs;
 
     # Numbered, lettered, and bulleted lists (preserving nesting/indentation)
     $trac =~ s{^(\s*\d+)[.)\]]\s*}{$1. }gm;
@@ -215,6 +229,47 @@ sub trac2gfm {
 
     # Manual linebreaks cleanup
     $trac =~ s{\n?(\[\[BR\s*\]\])+}{  }gs;
+
+    # Line-oriented transformations that care whether they're a continuation of
+    # a block started on a previous line ("block" here defined by contiguous
+    # lines of text not separated from each other by blank lines).
+    my $in_block = 0;
+    my $prev_line = '';
+
+    my @lines = split(/\n/, $trac);
+
+    LINE:
+    foreach my $line (@lines) {
+        if ($line =~ m{^\s*$}) {
+            $in_block = 0;
+            next LINE;
+        }
+
+        # Blockquote continuations.
+        if ($prev_line =~ m{^>}) {
+            if ($line =~ m{^\s+(\S.*)}) {
+                $line = "> $1";
+            } else {
+                # Blockquote was terminated by outdenting, but without the
+                # customary blank line in between. Add that, close the block,
+                # and move to the next line.
+                $line = "\n$line";
+                $in_block = 0;
+                next LINE;
+            }
+        }
+
+        $prev_line = $line;
+    }
+
+    if (@lines == 1) {
+        $trac = $lines[0];
+    } else {
+        $trac = join("\n", @lines);
+        $trac =~ s{\n{3,}}{\n\n}gs;
+    }
+
+    $trac .= "\n" if $end_with_nl;
 
     return $trac;
 }

@@ -80,6 +80,8 @@ Things that do get converted:
 - Blockquotes
 - Links
 - TracLinks
+    - Issues/Tickets
+    - Changesets (including mapping SVN changeset numbers to Git commit IDs)
 - Image macross (for images on the current wiki page only)
 
 Things that do _not_ convert (at least not yet):
