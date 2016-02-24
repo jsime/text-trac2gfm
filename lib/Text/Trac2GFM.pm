@@ -56,30 +56,42 @@ This module does not export any functions by default. You must select the ones
 you wish you use explicitly during module import. The following functions are
 available for importing:
 
-=head2 trac2gfm ($markup, $title_options)
+=head2 trac2gfm ($markup, $options)
 
 Provided a scalar containing TracWiki markup, returns a scalar containing GFM
 compliant markup. As many markup features as can be converted are, but please
 note that GitLab-flavored Markdown does not support absolutely everything that
 TracWiki does.
 
-An optional hash reference of title options may be provided as the second
-argument. The contents should be the same as what may be passed to C<gfmtitle>
-and will be passed unaltered to that function whenever necessary. This ensures
-that any internal wiki links which are converted as part of the markup
-translation follow the same rules you may be using in your own direct
-invocations of C<gfmtitle>.
+An optional (though important) hash reference of options may be provided as the
+second argument.
 
-If being performed as part of a wholesale Trac to GitLab migration (which is
-probably the case), you will be responsible for updating the various internal
-links which use identifiers that may have changed (ticket numbers, commit IDs,
-etc.). Internal Wiki links will be corrected to use the GFM title format,
-however, so as long as your entire wiki is converted using these functions, the
-page references will come out intact. If you had been using Git repositories in
-Trac, then your commit IDs will likely also remain the same (as that process
-should be accomplished by simply switching remotes). Trac to GitLab conversions
-which go from SVN to Git will require additional massaging to maintain the
-C<[n]> changeset references.
+=over
+
+=item * commits
+
+A hash containing the mappings for any repository changeset/commit references
+in your wiki pages. This is crucial if you are migrating a project from Trac's
+Subversion module to a Gitlab project (which is, obviously, in Git). All of
+yuor SVN changesets will have been converted to Git commits. For this option,
+the keys are your original Subversion changeset numbers and the values are the
+new Git commit IDs (you may use the full hashes or the shortened ones). These
+mappings should be extracted from the output of the C<git svn clone> command.
+
+=item * image_base
+
+A string with the base URL where any embedded or attached images are located.
+For Gitlab this will generally be https://<yourgitlabdomain>/<namespace>/<project>/uploads/<hash>
+where the domain, namespace, and project should hopefully be self-explanatory,
+and the hash is simply a randomized string. Note that this URL should map to
+the appropriate uploads directory on your Gitlab server where you have copied
+the images/attachments.
+
+=back
+
+These options are used both for markup conversion as well as any necessary
+title rewriting, so in addition to the keys just mentioned, you will likely
+also need to pass in the options documented for C<gfmtitle> below.
 
 Things that do get converted:
 
