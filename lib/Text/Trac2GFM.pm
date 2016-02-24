@@ -111,6 +111,8 @@ Things that do get converted:
 
 =item * Image macross (for images on the current wiki page only)
 
+=item * Tables
+
 =back
 
 Things that do I<not> convert (at least not yet):
@@ -118,8 +120,6 @@ Things that do I<not> convert (at least not yet):
 =over
 
 =item * Definition Lists
-
-=item * Tables
 
 =item * Images from anywhere other than the current wiki page
 
@@ -155,7 +155,6 @@ sub trac2gfm {
 
     # Blockquotes (opening line only - remaining multiline are handled later)
     $trac =~ s{\n\n\s{2,}(\S[^\n]*)(\n|$)}{\n\n> $1$2}gs;
-#    $trac =~ s{(\n>[^\n]*\n)[ ]{2,}(\S.*)\n}{$1> $2\n}gs;
 
     # Numbered, lettered, and bulleted lists (preserving nesting/indentation)
     $trac =~ s{^(\s*\d+)[.)\]]\s*}{$1. }gm;
@@ -230,37 +229,50 @@ sub trac2gfm {
     # Manual linebreaks cleanup
     $trac =~ s{\n?(\[\[BR\s*\]\])+}{  }gs;
 
-    # Line-oriented transformations that care whether they're a continuation of
-    # a block started on a previous line ("block" here defined by contiguous
-    # lines of text not separated from each other by blank lines).
-    my $in_block = 0;
-    my $prev_line = '';
+    # Track contents of the current table for conversion as a whole
+    my @table;
 
     my @lines = split(/\n/, $trac);
 
     LINE:
-    foreach my $line (@lines) {
-        if ($line =~ m{^\s*$}) {
-            $in_block = 0;
+    for (my $i = 0; $i <= $#lines; $i++) {
+        # Table conversion
+        if ($lines[$i] =~ m{^\s*\|\|}s) {
+            # We need the entire table before we can convert its markup, so
+            # gather the lines into @table while also clearing the current $line
+            push(@table, $lines[$i]);
+            $lines[$i] = '';
+            next LINE;
+        } elsif (@table > 0) {
+            # We have table content, but just hit a line that is not part of the
+            # table, so we can now convert that markup and add it back in at
+            # the previous line (since the current one may require its own
+            # non-table-y processing).
+            $lines[$i-1] = _convert_table(@table);
+            @table = ();
+        }
+
+        if ($lines[$i] =~ m{^\s*$}) {
             next LINE;
         }
 
         # Blockquote continuations.
-        if ($prev_line =~ m{^>}) {
-            if ($line =~ m{^\s+(\S.*)}) {
-                $line = "> $1";
+        if ($i > 0 && $lines[$i-1] =~ m{^>}) {
+            if ($lines[$i] =~ m{^\s+(\S.*)}) {
+                $lines[$i] = "> $1";
             } else {
                 # Blockquote was terminated by outdenting, but without the
                 # customary blank line in between. Add that, close the block,
                 # and move to the next line.
-                $line = "\n$line";
-                $in_block = 0;
+                $lines[$i] = "\n$lines[$i]";
                 next LINE;
             }
         }
-
-        $prev_line = $line;
     }
+
+    # If we still have table content, then we hit the end of the markup right
+    # on a table row. Go ahead and consume and convert the straggler.
+    push(@lines, _convert_table(@table)) if @table && @table > 0;
 
     if (@lines == 1) {
         $trac = $lines[0];
@@ -269,7 +281,7 @@ sub trac2gfm {
         $trac =~ s{\n{3,}}{\n\n}gs;
     }
 
-    $trac .= "\n" if $end_with_nl;
+    $trac .= "\n" if $end_with_nl && $trac !~ m{\n$}s;
 
     return $trac;
 }
@@ -380,6 +392,112 @@ sub gfmtitle {
 
     return $title;
 }
+
+sub _convert_table {
+    my ($header, @rows) = @_;
+
+    my @headers = _split_table_line($header);
+    my @aligns = map { $_ =~ m{^\S.*\s+$}s ? 'l' : $_ =~ m{^\s+.*\S$} ? 'r' : 'c' } @headers;
+    my @widths = map { length(crunch($_)) } @headers;
+
+    my ($i, $j);
+
+    for ($i = 0; $i <= $#rows; $i++) {
+        $rows[$i] = [map { crunch($_) } _split_table_line($rows[$i])];
+        for ($j = 0; $j <= $#{$rows[$i]}; $j++) {
+            $widths[$j] = length($rows[$i][$j])
+                unless defined $widths[$j]
+                    && $widths[$j] > length($rows[$i][$j]);
+        }
+    }
+
+    # GFM requires the header marker row to be at least three dashes. We add two
+    # so there's room for aligning marks.
+    @widths = map { $_ >= 5 ? $_ : 5 } @widths;
+
+    # Ensure that we have an alignment for every column (in case there were
+    # more columns in a row under the headers). Default is centering.
+    push(@aligns, ('c') x ($#widths - $#aligns));
+
+    my @table;
+
+    for ($i = 0; $i <= $#aligns; $i++) {
+        $headers[$i] = crunch($headers[$i]) if defined $headers[$i];
+        $headers[$i] = _align_cell($headers[$i] // '', $aligns[$i], $widths[$i]);
+    }
+    push(@table, join(' | ', @headers));
+
+    my @marks;
+    for ($i = 0; $i <= $#aligns; $i++) {
+        my $bar = '-' x $widths[$i];
+        if ($aligns[$i] eq 'l') {
+            $bar = ':' . substr($bar, 1);
+        } elsif ($aligns[$i] eq 'r') {
+            $bar = substr($bar, 0, -1) . ':';
+        } else {
+            $bar = ':' . substr($bar, 1, -1) . ':';
+        }
+        push(@marks, $bar);
+    }
+    push(@table, join(' | ', @marks));
+
+    foreach my $row (@rows) {
+        for ($i = 0; $i <= $#aligns; $i++) {
+            $row->[$i] = _align_cell($row->[$i] // '', $aligns[$i], $widths[$i]);
+        }
+        push(@table, join(' | ', @{$row}));
+    }
+
+    my $gfm_table = '| ' . join(" |\n| ", @table) . " |\n";
+    return $gfm_table;
+}
+
+sub _split_table_line {
+    my ($line) = @_;
+
+    chomp($line);
+
+    $line =~ s{(^\s*\|\||\|\|\s*$)}{}gs;
+
+    return map { $_ =~ s{(^=|=$)}{}gs; $_ } split(/\|\|/, $line);
+}
+
+sub _align_cell {
+    my ($text, $align, $width) = @_;
+
+    if ($align eq 'l') {
+        $text = sprintf('%-' . $width . 's', $text);
+    } elsif ($align eq 'r') {
+        $text = sprintf('%' . $width . 's', $text);
+    } else {
+        $text = sprintf('%-' . $width . 's', (' ' x int(($width - length($text)) / 2)) . $text);
+    }
+
+    return $text;
+}
+
+=head1 LIMITATIONS
+
+This module makes a few concessions to sloppiness (and tolerated, though not
+official, markup), but for the most part it assumes your source content in the
+TracWiki markup is generally well-formed and valid.
+
+=head2 Tables
+
+Tables, specifically, will face known limitations in their conversion. GFM
+tables do not support row or column spanning, and cannot handle multi-line
+contents in the markup (the newline will terminate the current cell's content).
+As a result, complicated table markup from TracWiki pages will likely need to
+be hand-wrangled after the conversion.
+
+In addition to the lack of spanning in GFM, this converter will base the cell
+alignment on the contents of the first row. While TracWiki markup allows each
+cell to have its own independent alignment, GFM tables set the alignment on a
+per-column basis using markup in the headers.
+
+Headers are also mandatory in GFM tables, whereas they are optional in TracWiki.
+The first row of every TracWiki table will be used as the header in the GFM
+table, regardless of whether it included the C<||=Foo=||> markup.
 
 =head1 BUGS
 

@@ -83,11 +83,11 @@ Things that do get converted:
     - Issues/Tickets
     - Changesets (including mapping SVN changeset numbers to Git commit IDs)
 - Image macross (for images on the current wiki page only)
+- Tables
 
 Things that do _not_ convert (at least not yet):
 
 - Definition Lists
-- Tables
 - Images from anywhere other than the current wiki page
 - Macros
 
@@ -130,6 +130,29 @@ options to override some of the default behavior:
     sign is not allowed), you might do:
 
         gfmtitle('Languages/C++', { terms => { 'c++' => 'c-plus-plus' } });
+
+# LIMITATIONS
+
+This module makes a few concessions to sloppiness (and tolerated, though not
+official, markup), but for the most part it assumes your source content in the
+TracWiki markup is generally well-formed and valid.
+
+## Tables
+
+Tables, specifically, will face known limitations in their conversion. GFM
+tables do not support row or column spanning, and cannot handle multi-line
+contents in the markup (the newline will terminate the current cell's content).
+As a result, complicated table markup from TracWiki pages will likely need to
+be hand-wrangled after the conversion.
+
+In addition to the lack of spanning in GFM, this converter will base the cell
+alignment on the contents of the first row. While TracWiki markup allows each
+cell to have its own independent alignment, GFM tables set the alignment on a
+per-column basis using markup in the headers.
+
+Headers are also mandatory in GFM tables, whereas they are optional in TracWiki.
+The first row of every TracWiki table will be used as the header in the GFM
+table, regardless of whether it included the `||=Foo=||` markup.
 
 # BUGS
 
