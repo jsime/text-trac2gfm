@@ -156,8 +156,9 @@ sub trac2gfm {
     $opts->{'image_base'} = '/' unless exists $opts->{'image_base'};
     $opts->{'commits'} = {} unless exists $opts->{'commits'} && ref($opts->{'commits'}) eq 'HASH';
 
-    # Enforce UNIX linebreaks
+    # Enforce UNIX linebreaks and convert 0xa0 non breaking spaces to regular spaces
     $trac =~ s{\r\n}{\n}gs;
+    $trac =~ s{\xa0}{ }g;
 
     # Headings ('=== Foo ===' -> '### Foo')
     $trac =~ s{^(=+)([^=]+)=*$}{ ('#' x length($1)) . ' ' . crunch($2) }gme;
@@ -181,11 +182,11 @@ sub trac2gfm {
     $trac =~ s{''}{_}g;
 
     # Preformatting blocks (including highlighter selection)
-    $trac =~ s|^}}}$|```|gm;
-    $trac =~ s|^{{{(?:#!(\w+))?| '```' . (defined $1 ? $1 : '') |gme;
+    $trac =~ s|^\}\}\}$|```|gm;
+    $trac =~ s|^\{\{\{(?:#!(\w+))?| '```' . (defined $1 ? $1 : '') |gme;
 
     # In-line preformatting
-    $trac =~ s/({{{|}}})/`/g;
+    $trac =~ s/(\{\{\{|\}\}\})/`/g;
 
     # CamelCase internal wiki links
     $trac =~ s{
